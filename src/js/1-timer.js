@@ -1,18 +1,19 @@
-import flatpickr from 'flatpickr';
-import iziToast from 'izitoast';
-import 'flatpickr/dist/flatpickr.min.css';
-import 'izitoast/dist/css/iziToast.min.css';
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.min.css";
+import iziToast from "izitoast";
+import "izitoast/dist/css/iziToast.min.css";
 
-const inputId = document.querySelector('#datetime-picker');
-const btnStart = document.querySelector('button[data-start]');
-const daysValue = document.querySelector('[data-days]');
-const hoursValue = document.querySelector('[data-hours]');
-const minutesValue = document.querySelector('[data-minutes]');
-const secondsValue = document.querySelector('[data-seconds]');
+const input = document.querySelector('#datetime-picker');
+const startBtn = document.querySelector('[data-start]');
+const daysEl = document.querySelector('[data-days]');
+const hoursEl = document.querySelector('[data-hours]');
+const minutesEl = document.querySelector('[data-minutes]');
+const secondsEl = document.querySelector('[data-seconds]');
 
-btnStart.disabled = true;
-let userSelectedDate;
-let timeInerval;
+let userSelectedDate = null;
+let timerId = null;
+
+startBtn.disabled = true;
 
 const options = {
   enableTime: true,
@@ -20,48 +21,75 @@ const options = {
   defaultDate: new Date(),
   minuteIncrement: 1,
   onClose(selectedDates) {
-    if (!selectedDates || !selectedDates[0]) return;
     const selectedDate = selectedDates[0];
-    console.log(selectedDate);
 
-    if (selectedDate < new Date()) {
-      iziToast.error({
-        timeout: 10000,
-        position: 'topRight',
-        message: 'Please choose a date in the future',
-      });
-      btnStart.disabled = true;
-    } else {
-      userSelectedDate = selectedDates[0];
-      btnStart.disabled = false;
-    }
-  },
-};
-const fp = flatpickr(inputId, options);
-
-btnStart.addEventListener('click', startTimer);
-
-function startTimer() {
-  btnStart.disabled = true;
-  inputId.disabled = true;
-
-  timeInerval = setInterval(() => {
-    const currentTime = new Date();
-    const msDifference = userSelectedDate - currentTime;
-
-    if (msDifference <= 0) {
-      clearInterval(timeInerval);
-      inputId.disabled = false;
+    if (!selectedDate) {
+      userSelectedDate = null;
+      startBtn.disabled = true;
       return;
     }
 
-    const { days, hours, minutes, seconds } = convertMs(msDifference);
+    if (selectedDate <= new Date()) {
+      userSelectedDate = null;
+      startBtn.disabled = true;
+      iziToast.error({
+        message: 'Please choose a date in the future',
+        position: 'topRight',
+      });
+      return;
+    }
 
-    daysValue.textContent = String(days).padStart(2, '0');
-    hoursValue.textContent = String(hours).padStart(2, '0');
-    minutesValue.textContent = String(minutes).padStart(2, '0');
-    secondsValue.textContent = String(seconds).padStart(2, '0');
+    userSelectedDate = selectedDate;
+    startBtn.disabled = false;
+  },
+};
+
+flatpickr(input, options);
+
+startBtn.addEventListener('click', onStartBtnClick);
+
+function onStartBtnClick() {
+  startBtn.disabled = true;
+  input.disabled = true;
+
+  const timeLeft = userSelectedDate - new Date();
+
+  if (timeLeft <= 0) {
+    userSelectedDate = null;
+    input.disabled = false;
+    renderTimer(0);
+    return;
+  }
+
+  renderTimer(timeLeft);
+
+  timerId = setInterval(() => {
+    const timeLeft = userSelectedDate - new Date();
+
+    if (timeLeft <= 0) {
+      clearInterval(timerId);
+      timerId = null;
+      userSelectedDate = null;
+      input.disabled = false;
+      renderTimer(0);
+      return;
+    }
+
+    renderTimer(timeLeft);
   }, 1000);
+}
+
+function renderTimer(ms) {
+  const { days, hours, minutes, seconds } = convertMs(ms);
+
+  daysEl.textContent = addLeadingZero(days);
+  hoursEl.textContent = addLeadingZero(hours);
+  minutesEl.textContent = addLeadingZero(minutes);
+  secondsEl.textContent = addLeadingZero(seconds);
+}
+
+function addLeadingZero(value) {
+  return String(value).padStart(2, '0');
 }
 
 function convertMs(ms) {
